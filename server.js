@@ -13,7 +13,7 @@ app.use(express.json({ limit: "2mb" }));
 
 // Serve static and ensure "/" serves epic.html
 app.use(express.static(__dirname, { extensions: ["html"] }));
-app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "epic.html")));
+// app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "epic.html")));
 
 app.get("/api/health", (_req, res) => res.status(200).send("ok"));
 
@@ -103,22 +103,28 @@ Instructions:
 
 app.post("/api/suggest_stories", async (req, res) => {
   try {
-    const { epic, intents, existingStories, tickets } = req.body;
+    const { epic, intents, existingStories = [], tickets = [] } = req.body;
 
-    const eList = (existingStories || []).map(s => `- ${s.key}: ${s.summary} [intent=${s.intent||"—"}]`).join("\n");
-    const tList = (tickets || []).map(t => `- (${t.intent}) ${t.subject}: ${t.description}`).join("\n");
+    // Trim & sanitize prompt to avoid token bloat
+    const maxStories = 20;
+    const maxTickets = 20;
+    const eList = existingStories.slice(0, maxStories)
+      .map(s => `- ${s.key}: ${String(s.summary || "").slice(0, 200)} [intent=${s.intent || "—"}]`)
+      .join("\n");
+    const tList = tickets.slice(0, maxTickets)
+      .map(t => `- (${t.intent}) ${String(t.subject || "").slice(0,120)}: ${String(t.description || "").slice(0,240)}`)
+      .join("\n");
 
     const sys = `You are a product manager generating user stories.
-Return JSON with "stories": an array of exactly 3 objects with fields:
-- summary (concise, user-value oriented; start with an infinitive verb or "As a ... I want ...")
-- intent (must be one of: ${Array.isArray(intents) ? intents.join(", ") : ""})
-- storyPoints (integer 1..5)
-Do not include keys or status.`;
+Return JSON with "stories": exactly 3 objects:
+- summary (concise; start with an infinitive verb or "As a ... I want ...")
+- intent (one of: ${Array.isArray(intents) ? intents.join(", ") : ""})
+- storyPoints (integer 1..5)`;
 
     const usr = `Epic: ${epic?.name || "Untitled"}
 Description: ${epic?.description || "(none)"}
 
-Selected intents to focus on: ${Array.isArray(intents) ? intents.join(", ") : ""}
+Selected intents: ${Array.isArray(intents) ? intents.join(", ") : ""}
 
 Existing stories:
 ${eList}
@@ -126,38 +132,57 @@ ${eList}
 Representative tickets:
 ${tList}
 
-Goal: Propose 3 new stories that would most increase alignment for these intents while avoiding duplication with existing stories.`;
+Goal: Propose 3 *new* stories that most increase alignment for these intents while avoiding duplicates.`
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
 
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [{ role: "system", content: sys }, { role: "user", content: usr }]
-      })
-    });
+    // Small retry helper for 429/5xx
+    const callOpenAI = async () => {
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.3,
+          max_tokens: 350,
+          response_format: { type: "json_object" },
+          messages: [{ role: "system", content: sys }, { role: "user", content: usr }]
+        })
+      });
+      return r;
+    };
+
+    let r = await callOpenAI();
+    if (!r.ok && (r.status === 429 || r.status >= 500)) {
+      // brief backoff then retry once
+      await new Promise(d => setTimeout(d, 600));
+      r = await callOpenAI();
+    }
 
     if (!r.ok) {
       const tx = await r.text();
-      return res.status(502).json({ error: "OpenAI error", detail: tx });
+      console.error("suggest_stories upstream error:", r.status, tx);
+      return res.status(502).json({ error: "OpenAI error", status: r.status, detail: tx.slice(0, 1200) });
     }
+
     const data = await r.json();
     let parsed = { stories: [] };
-    try { parsed = JSON.parse(data.choices?.[0]?.message?.content || "{}"); } catch {}
+    try { parsed = JSON.parse(data.choices?.[0]?.message?.content || "{}"); } catch (e) {
+      console.error("suggest_stories JSON parse fail:", e, data);
+    }
 
-    const stories = Array.isArray(parsed.stories) ? parsed.stories.slice(0,3).map(s => ({
-      summary: String(s.summary || "").slice(0, 250),
-      intent: String(s.intent || intents?.[0] || ""),
-      storyPoints: Math.max(1, Math.min(5, parseInt(s.storyPoints || 3, 10) || 3))
-    })) : [];
+    const stories = Array.isArray(parsed.stories)
+      ? parsed.stories.slice(0,3).map(s => ({
+          summary: String(s.summary || "").slice(0, 250),
+          intent: String(s.intent || intents?.[0] || ""),
+          storyPoints: Math.max(1, Math.min(5, parseInt(s.storyPoints || 3, 10) || 3))
+        }))
+      : [];
 
-    res.json({ stories });
+    return res.json({ stories });
   } catch (e) {
+    console.error("suggest_stories handler error:", e);
     res.status(500).json({ error: "Unhandled error", detail: String(e) });
   }
 });
