@@ -11,8 +11,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
-// Serve the folder containing this file (epic.html + CSVs)
+// Serve static and ensure "/" serves epic.html
 app.use(express.static(__dirname, { extensions: ["html"] }));
+app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "epic.html")));
 
 app.get("/api/health", (_req, res) => res.status(200).send("ok"));
 
@@ -24,7 +25,11 @@ app.post("/api/analyze", async (req, res) => {
     const tList = (tickets || []).slice(0, 50).map(t => `- (${t.intent}) ${t.subject}: ${t.description}`).join("\n");
 
     const sys = `You are an analyst. Score how well the epic and its stories address the selected intents across the provided tickets.
-Return JSON with fields: score (0..1), summary (1-2 sentences), suggestions (array of 3-6 crisp items).`;
+Return JSON with fields:
+- score (0..1) overall alignment (not per-story)
+- summary (1-2 sentences, plain text)
+- suggestions (array of 3-6 crisp improvement items)
+- likelihoodPercent (0..100) = estimated probability that these stories will achieve a 40% reduction in customer support volume from baseline (ignore timeline).`;
 
     const usr = `Epic: ${epic?.name || "Untitled"}
 Description: ${epic?.description || "(none)"}
@@ -34,13 +39,12 @@ Selected intents: ${Array.isArray(intents) ? intents.join(", ") : ""}
 Stories:
 ${sList}
 
-Tickets (sample):
+Tickets (sample across selected intents):
 ${tList}
 
 Instructions:
-1) Score 0..1 overall alignment (not per-story).
-2) One-sentence summary.
-3) Concrete suggestions to raise the score.`;
+1) Consider coverage of selected intents, specificity of stories, and severity/themes in tickets.
+2) Return score (0..1), short summary, list of suggestions, and likelihoodPercent (0..100) for the 40% reduction KPI.`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Missing OPENAI_API_KEY" });
@@ -61,15 +65,25 @@ Instructions:
       return res.status(502).json({ error: "OpenAI error", detail: tx });
     }
     const data = await r.json();
-    let parsed = { score: null, summary: "", suggestions: [] };
+    let parsed = { score: null, summary: "", suggestions: [], likelihoodPercent: null };
     try { parsed = JSON.parse(data.choices?.[0]?.message?.content || "{}"); } catch {}
 
+    // Fallbacks
+    // Alignment score fallback
     let score = typeof parsed.score === "number" ? Math.max(0, Math.min(1, parsed.score)) : null;
     if (score === null) {
       const intentsCovered = new Set((stories || []).map(s => (s.intent || "").trim()).filter(Boolean));
       const relevant = (tickets || []).filter(t => (intents || []).includes(t.intent));
       const covered = relevant.filter(t => intentsCovered.has(t.intent)).length;
       score = relevant.length ? covered / relevant.length : 0;
+    }
+    // Likelihood fallback
+    let likelihoodPercent = typeof parsed.likelihoodPercent === "number" ? Math.max(0, Math.min(100, Math.round(parsed.likelihoodPercent))) : null;
+    if (likelihoodPercent === null) {
+      const intentsCovered = new Set((stories || []).map(s => (s.intent || "").trim()).filter(Boolean));
+      const coveredCount = (intents || []).filter(i => intentsCovered.has(i)).length;
+      const coverage = (intents && intents.length) ? coveredCount / intents.length : 0;
+      likelihoodPercent = Math.round(Math.max(0, Math.min(1, 0.7*score + 0.3*coverage)) * 100);
     }
 
     res.json({
@@ -79,7 +93,8 @@ Instructions:
         "Add at least one story explicitly mapped to each selected intent.",
         "Tighten acceptance criteria to mirror ticket language and edge cases.",
         "Add UI copy improvements for error states called out in tickets."
-      ]
+      ],
+      likelihoodPercent
     });
   } catch (e) {
     res.status(500).json({ error: "Unhandled error", detail: String(e) });

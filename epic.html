@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <title>Epic Details</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- CSV parser -->
   <script defer src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     :root { --bg:#0b1a2b; --bg-soft:#0f2238; --panel:#fff; --muted:#6b778c; --text:#172b4d; --accent:#0052cc; --accent-ink:#fff; --border:#e6e9ef; --chip-bg:#f1f5ff; --chip-text:#002b7f; }
@@ -60,6 +59,15 @@
     .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#0b3aa8;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 10px 24px rgba(2,10,24,.25);opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;z-index:9999}
     .toast.show{opacity:1;transform:translate(-50%,0)}
     .dim{opacity:.6;filter:grayscale(0.1)}
+
+    /* KPI likelihood chip */
+    .likelihood { display:inline-flex; align-items:center; gap:8px; }
+    .chip-xl{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;font-weight:700;border:1px solid var(--border)}
+    .very-low{background:#ffe8e6;color:#7a1b12;border-color:#ffd1cd}
+    .low{background:#fff3cd;color:#7a5b00;border-color:#ffe8a3}
+    .avg{background:#e7f0ff;color:#173a7a;border-color:#cfe0ff}
+    .high{background:#e7f7ea;color:#0b5a2b;border-color:#bfe8c9}
+    .very-high{background:#dcfce7;color:#064e3b;border-color:#86efac}
   </style>
 </head>
 <body>
@@ -177,6 +185,13 @@
               </div>
             </div>
             <div>
+              <div style="font-weight:700;margin:8px 0 4px;">KPI likelihood: 40% reduction in support volume</div>
+              <div class="likelihood">
+                <span class="chip-xl" :class="likelihoodClass">{{ likelihoodLabel }}</span>
+                <span class="hint">Updated on each analysis run.</span>
+              </div>
+            </div>
+            <div>
               <div style="font-weight:700;margin:8px 0 4px;">What we analyzed</div>
               <div class="hint">Tickets: {{ analysis.ticketCount }} across intents: {{ selectedIntents.join(', ') }}. Stories considered: {{ stories.length }}.</div>
             </div>
@@ -196,7 +211,6 @@
     </div>
   </div>
 
-  <!-- Import Vue as ES module and mount app -->
   <script type="module">
     import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js';
 
@@ -206,25 +220,26 @@
         stories:[], tickets:[],
         candidateIntents:[], selectedIntents:[], analysis:null,
         serverStatus:'',
-        loadingAlignment:false, loadingIntents:false, loadingSuggest:false, toast:''
+        loadingAlignment:false, loadingIntents:false, loadingSuggest:false, toast:'', likelihoodPercent:null
       }},
       computed:{
         epicDescFormatted(){
           const esc = (s)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
           let t = esc(this.epic.description || '');
-          t = t.replace(/\\s*•\\s*/g, '<br>• ');
-          t = t.replace(/(Background)/g, '<br><br><strong>$1</strong>')
-               .replace(/(What needs to be done)/g, '<br><br><strong>$1</strong>')
+          t = t.replace(/\s*•\s*/g, '<br>• ');
+          t = t.replace(/(What needs to be done)/g, '<br><br><strong>$1</strong>')
                .replace(/(Why it needs to be done)/g, '<br><br><strong>$1</strong>')
                .replace(/(Acceptance criteria)/g, '<br><br><strong>$1</strong>')
                .replace(/(Success KPI)/g, '<br><br><strong>$1</strong>');
           return t;
         },
         sortedStories(){
-          const parseKey=k=>{ if(!k) return 1e12; const m=/IL-(\\d+)$/.exec((k+'').trim()); return m?parseInt(m[1],10):1e12; };
+          const parseKey=k=>{ if(!k) return 1e12; const m=/IL-(\d+)$/.exec((k+'').trim()); return m?parseInt(m[1],10):1e12; };
           return [...this.stories].sort((a,b)=>parseKey(a.key)-parseKey(b.key));
         },
-        totalStoryPoints(){ return this.stories.reduce((s,x)=>s+(Number.isFinite(+x.storyPoints)?+x.storyPoints:0),0); }
+        totalStoryPoints(){ return this.stories.reduce((s,x)=>s+(Number.isFinite(+x.storyPoints)?+x.storyPoints:0),0); },
+        likelihoodLabel(){ const p=this.likelihoodPercent; if(p==null) return '—'; if(p<20) return 'Very Low'; if(p<40) return 'Low'; if(p<60) return 'Average'; if(p<80) return 'High'; return 'Very High'; },
+        likelihoodClass(){ const p=this.likelihoodPercent; if(p==null) return 'avg'; if(p<20) return 'very-low'; if(p<40) return 'low'; if(p<60) return 'avg'; if(p<80) return 'high'; return 'very-high'; }
       },
       mounted(){ this.loadCSVs(); },
       methods:{
@@ -240,7 +255,7 @@
         },
         resetAll(){ this.loadCSVs(); },
         formatDate(iso){ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'2-digit'}); },
-        initials(n){ if(!n) return ''; return n.split(/\\s+/).filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join(''); },
+        initials(n){ if(!n) return ''; return n.split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join(''); },
         _norm(row){ const o={}; for(const [k,v] of Object.entries(row)){ const nk=(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); o[nk]=(v||'').toString().trim(); } return o; },
         _ingestStories(rows){
           const epicRow=rows.find(r=>/epic/i.test(r.issuetype||''));
@@ -291,6 +306,7 @@
           let suggestions=[]; 
           for(const m of this.selectedIntents.filter(i=>!covered.has(i))){ suggestions.push(`Add 1–2 stories explicitly addressing "${m}" with clear acceptance criteria and UI states.`); }
           for(const w of this.selectedIntents.filter(i=>covered.has(i))){ suggestions.push(`Strengthen stories for "${w}" by covering edge cases from tickets (retry flows, expired links, confirmation messages).`); }
+          // Ask backend LLM for analysis and KPI likelihood
           try{
             const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
               epic:{name:this.epic.name,description:this.epic.description},
@@ -303,10 +319,20 @@
               if(typeof data.score==='number') avg=data.score;
               if(data.summary) summary=data.summary;
               if(Array.isArray(data.suggestions)) suggestions=data.suggestions;
+              if(typeof data.likelihoodPercent==='number') this.likelihoodPercent = Math.round(Math.max(0,Math.min(100,data.likelihoodPercent)));
               this.serverStatus='online';
             } else { this.serverStatus='offline'; }
           }catch(e){ this.serverStatus='offline'; }
           this.analysis={score:avg, summary, ticketCount:relevant.length, suggestions};
+          if(this.likelihoodPercent==null){
+            // fallback heuristic if LLM didn't return
+            const storyIntents = new Set(this.stories.map(s=>(s.intent||'').trim()).filter(Boolean));
+            const coveredCount = this.selectedIntents.filter(i=>storyIntents.has(i)).length;
+            const coverage = this.selectedIntents.length ? coveredCount / this.selectedIntents.length : 0;
+            const raw = Math.max(0, Math.min(1, 0.7*avg + 0.3*coverage)) * 100;
+            this.likelihoodPercent = Math.round(raw);
+          }
+          console.log('[KPI likelihood %]', this.likelihoodPercent);
           this.loadingAlignment=false;
         },
         async suggestStories(){
@@ -323,7 +349,7 @@
               const data=await res.json();
               if(Array.isArray(data.stories) && data.stories.length){
                 const nextId = (()=>{
-                  const nums=this.stories.map(s=>{const m=/IL-(\\d+)/.exec(s.key||''); return m?parseInt(m[1],10):0;});
+                  const nums=this.stories.map(s=>{const m=/IL-(\d+)/.exec(s.key||''); return m?parseInt(m[1],10):0;});
                   return Math.max(0,...nums)+1;
                 })();
                 data.stories.forEach((s,i)=>{
