@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Epic Details</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- CSV parser -->
+  <script defer src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root { --bg:#0b1a2b; --bg-soft:#0f2238; --panel:#fff; --muted:#6b778c; --text:#172b4d; --accent:#0052cc; --accent-ink:#fff; --border:#e6e9ef; --chip-bg:#f1f5ff; --chip-text:#002b7f; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:linear-gradient(180deg,var(--bg) 0%,var(--bg-soft) 100%);min-height:100vh}
+    .app-shell{max-width:1280px;margin:0 auto;padding:24px 16px 56px}
+    .header{color:#dce6ff;display:flex;align-items:center;gap:12px;margin-bottom:16px;justify-content:space-between}
+    .pill{font-size:12px;background:rgba(255,255,255,.12);color:#e8eeff;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);letter-spacing:.02em}
+    .title{color:#fff;font-size:20px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .grid{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(2,10,24,.2);overflow:hidden}
+    .panel .hd{padding:14px 16px;border-bottom:1px solid var(--border);background:#f9fbff;font-weight:600;color:#0c2d6b;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .panel .bd{padding:16px}
+
+    .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.02em}
+    .field .value{background:#f8fafc;border:1px solid var(--border);padding:10px 12px;border-radius:8px;min-height:38px;display:flex;align-items:center;color:#0b1633}
+    .badge{background:var(--chip-bg);color:var(--chip-text);border:1px solid #d6e2ff;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;display:inline-block}
+
+    .desc{background:#fafbfe;border:1px dashed #dfe5f2;padding:12px;border-radius:8px;min-height:60px;color:#112a4b;line-height:1.45;white-space:pre-wrap}
+    .desc ul{margin:.25rem 0 .25rem 1.1rem;padding:0}
+    .desc li{margin:.25rem 0}
+
+    table{width:100%;border-collapse:collapse;table-layout:auto}
+    th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+    th{font-size:12px;color:var(--muted);letter-spacing:.02em;font-weight:600;background:#fbfcff}
+    tbody tr:hover{background:#fbfdff}
+    .key{font-weight:700;color:var(--accent)}
+    .assignee{display:inline-flex;align-items:center;gap:8px}
+    .avatar{width:24px;height:24px;border-radius:50%;background:#e8eefc;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#204080;border:1px solid #dbe6ff}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border);background:#f7f9ff}
+    .btn{appearance:none;border:1px solid #cfe0ff;background:#edf3ff;color:#0b3aa8;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;transition:transform .12s ease, box-shadow .12s ease, background .12s ease}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(2,10,24,.18)}
+    .btn:active{transform:translateY(0)}
+    .btn[disabled]{cursor:not-allowed;opacity:.7;box-shadow:none;transform:none}
+    .reset { background:#1f2a44; color:#fff; border-color:#3f5fbf }
+    .reset:hover{ background:#223056 }
+
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;padding:6px 10px;border-radius:999px;font-size:12px}
+    .chip .x{cursor:pointer;color:#6b7280}
+    .chip.disabled{opacity:.6;pointer-events:none}
+
+    .scorecard{display:flex;align-items:center;gap:16px;padding:16px;border:1px solid var(--border);border-radius:12px;background:#fbfcff}
+    .scorebadge{width:96px;height:96px;flex:0 0 96px;aspect-ratio:1/1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;color:#fff;
+      background: radial-gradient(100% 100% at 50% 0%, #f5cc66 0%, #d49b26 100%);box-shadow:inset 0 2px 4px rgba(0,0,0,.1)}
+
+    .spinner{width:16px;height:16px;border:2px solid #cfd8ff;border-top-color:#405cff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;margin-left:8px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* toast banner */
+    .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#0b3aa8;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 10px 24px rgba(2,10,24,.25);opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;z-index:9999}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .dim{opacity:.6;filter:grayscale(0.1)}
+  </style>
+</head>
+<body>
+  <div id="app" class="app-shell" v-cloak>
+    <div class="toast" :class="{show: !!toast}">{{ toast }}</div>
+    <div class="header">
+      <div class="title">
+        <span class="pill">Epic</span>
+        {{ epic.name || "Untitled Epic" }}
+        <span class="pill" v-if="epic.key">{{ epic.key }}</span>
+      </div>
+      <div class="u-flex" style="display:flex; gap:10px;">
+        <button class="btn reset" @click="resetAll">Reset</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="stack">
+        <section class="panel">
+          <div class="hd"><span>Epic Details</span></div>
+          <div class="bd">
+            <div class="meta">
+              <div class="field"><label>Key</label><div class="value">{{ epic.key || "—" }}</div></div>
+              <div class="field"><label>Status</label><div class="value"><span v-if="epic.status" class="badge">{{ epic.status }}</span><span v-else>—</span></div></div>
+              <div class="field"><label>Owner</label><div class="value">{{ epic.owner || "—" }}</div></div>
+              <div class="field"><label>Story Points</label><div class="value">{{ epic.storyPoints ?? "—" }}</div></div>
+              <div class="field"><label>Start Date</label><div class="value">{{ formatDate(epic.startDate) }}</div></div>
+              <div class="field"><label>Due Date</label><div class="value">{{ formatDate(epic.dueDate) }}</div></div>
+              <div class="field" style="grid-column:1 / -1;">
+                <label>Description</label>
+                <div class="desc" v-html="epicDescFormatted"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="hd">Stories (from CSV, sorted by ID)</div>
+          <div class="bd" v-if="sortedStories.length">
+            <table aria-label="Stories in epic">
+              <thead>
+                <tr>
+                  <colgroup>
+                    <col style="width:120px" />
+                    <col />
+                    <col style="width:160px" />
+                    <col style="width:200px" />
+                    <col style="width:110px" />
+                  </colgroup>
+                  <th>Key</th>
+                  <th>Summary</th>
+                  <th>Status</th>
+                  <th>Assignee</th>
+                  <th>Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="story in sortedStories" :key="story.key">
+                  <td class="key">{{ story.key }}</td>
+                  <td class="summary" style="overflow-wrap:anywhere;">{{ story.summary }}</td>
+                  <td><span class="badge" v-if="story.status">{{ story.status }}</span><span v-else>—</span></td>
+                  <td>
+                    <span class="assignee" v-if="story.assignee">
+                      <span class="avatar">{{ initials(story.assignee) }}</span>
+                      <span>{{ story.assignee }}</span>
+                    </span>
+                    <span v-else>—</span>
+                  </td>
+                  <td>{{ story.storyPoints ?? "—" }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bd" v-else><em>No stories loaded.</em></div>
+          <div class="toolbar">
+            <div class="stats"><strong>{{ totalStoryPoints }}</strong> total story points across {{ stories.length }} stories</div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="panel">
+        <div class="hd">Customer Support Alignment Analysis</div>
+        <div class="bd">
+          <div class="u-flex" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <button class="btn" :disabled="!stories.length || !tickets.length || loadingIntents" @click="analyzeIntents">
+              Analyze Intents
+            </button>
+          </div>
+          <div style="margin-top:12px;" v-if="candidateIntents.length">
+            <div class="hint">Top 5 ticket intents detected: {{ candidateIntents.join(', ') }}</div>
+          </div>
+          <div style="margin-top:10px;" v-if="selectedIntents.length">
+            <div class="chips">
+              <span v-for="tag in selectedIntents" :key="tag" class="chip" :class="{disabled:selectedIntents.length===1}">
+                {{ tag }} <span class="x" title="Remove" @click="removeIntent(tag)" v-if="selectedIntents.length>1">×</span>
+              </span>
+            </div>
+          </div>
+
+          <hr style="margin:16px 0;border:none;border-top:1px solid var(--border)" />
+
+          <div class="u-flex" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <button class="btn" :disabled="!selectedIntents.length || !stories.length || !tickets.length || loadingAlignment" @click="analyzeAlignment">
+              <span v-if="!loadingAlignment">Analyze Alignment</span>
+              <span v-else>Analyzing… <span class="spinner"></span></span>
+            </button>
+          </div>
+
+          <div v-if="analysis" style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+            <div class="scorecard">
+              <div class="scorebadge">{{ (analysis.score*100).toFixed(0) }}%</div>
+              <div class="scoredesc">
+                <div style="font-weight:700;margin-bottom:4px;">Alignment Score</div>
+                <div>{{ analysis.summary }}</div>
+              </div>
+            </div>
+            <div>
+              <div style="font-weight:700;margin:8px 0 4px;">What we analyzed</div>
+              <div class="hint">Tickets: {{ analysis.ticketCount }} across intents: {{ selectedIntents.join(', ') }}. Stories considered: {{ stories.length }}.</div>
+            </div>
+            <div>
+              <div style="font-weight:700;margin:8px 0 4px;">Suggestions to improve</div>
+              <ul :class="{dim:loadingSuggest}"><li v-for="(sug,idx) in analysis.suggestions" :key="idx">{{ sug }}</li></ul>
+            </div>
+            <div>
+              <button class="btn" :disabled="loadingSuggest" @click="suggestStories">
+                <span v-if="!loadingSuggest">Generate Improvement Stories</span>
+                <span v-else>Generating… <span class="spinner"></span></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Import Vue as ES module and mount app -->
+  <script type="module">
+    import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js';
+
+    createApp({
+      data(){return{
+        epic:{name:"",key:"",description:"",status:"",owner:"",startDate:"",dueDate:"",storyPoints:null},
+        stories:[], tickets:[],
+        candidateIntents:[], selectedIntents:[], analysis:null,
+        serverStatus:'',
+        loadingAlignment:false, loadingIntents:false, loadingSuggest:false, toast:''
+      }},
+      computed:{
+        epicDescFormatted(){
+          const esc = (s)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+          let t = esc(this.epic.description || '');
+          t = t.replace(/\\s*•\\s*/g, '<br>• ');
+          t = t.replace(/(Background)/g, '<br><br><strong>$1</strong>')
+               .replace(/(What needs to be done)/g, '<br><br><strong>$1</strong>')
+               .replace(/(Why it needs to be done)/g, '<br><br><strong>$1</strong>')
+               .replace(/(Acceptance criteria)/g, '<br><br><strong>$1</strong>')
+               .replace(/(Success KPI)/g, '<br><br><strong>$1</strong>');
+          return t;
+        },
+        sortedStories(){
+          const parseKey=k=>{ if(!k) return 1e12; const m=/IL-(\\d+)$/.exec((k+'').trim()); return m?parseInt(m[1],10):1e12; };
+          return [...this.stories].sort((a,b)=>parseKey(a.key)-parseKey(b.key));
+        },
+        totalStoryPoints(){ return this.stories.reduce((s,x)=>s+(Number.isFinite(+x.storyPoints)?+x.storyPoints:0),0); }
+      },
+      mounted(){ this.loadCSVs(); },
+      methods:{
+        _toast(msg){ this.toast = msg; setTimeout(()=> this.toast='', 3000); },
+        loadCSVs(){
+          this.analysis=null; this.selectedIntents=[]; this.candidateIntents=[];
+          this.stories=[]; this.tickets=[];
+          const STORIES='jira_export_expanded.csv'; const TICKETS='zendesk_tickets_sample.csv';
+          const opts={header:true,skipEmptyLines:true,download:true,error:(e)=>console.error(e)};
+          Papa.parse(STORIES,{...opts,complete:(res)=>{const rows=res.data.map(this._norm); this._ingestStories(rows);}});
+          Papa.parse(TICKETS,{...opts,complete:(res)=>{const rows=res.data.map(this._norm); this._ingestTickets(rows);}});
+          fetch('/api/health').then(r=>r.ok?r.text():Promise.reject()).then(()=>this.serverStatus='online').catch(()=>this.serverStatus='offline');
+        },
+        resetAll(){ this.loadCSVs(); },
+        formatDate(iso){ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'2-digit'}); },
+        initials(n){ if(!n) return ''; return n.split(/\\s+/).filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join(''); },
+        _norm(row){ const o={}; for(const [k,v] of Object.entries(row)){ const nk=(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); o[nk]=(v||'').toString().trim(); } return o; },
+        _ingestStories(rows){
+          const epicRow=rows.find(r=>/epic/i.test(r.issuetype||''));
+          if(epicRow){ this.epic={
+            name:epicRow.summary||this.epic.name, key:epicRow.key||this.epic.key, description:epicRow.description||this.epic.description,
+            status:epicRow.status||this.epic.status, owner:epicRow.owner||epicRow.assignee||this.epic.owner,
+            startDate:epicRow.startdate||this.epic.startDate, dueDate:epicRow.duedate||this.epic.dueDate,
+            storyPoints:epicRow.storypoints?Number(epicRow.storypoints):this.epic.storyPoints
+          }}
+          const stories=rows.filter(r=>/story/i.test(r.issuetype||'')); 
+          this.stories=stories.map(r=>({key:r.key||'',summary:r.summary||'',status:r.status||'',assignee:r.assignee||'',storyPoints:r.storypoints?Number(r.storypoints):null,intent:(r.intent||'').trim()}));
+          if(this.tickets.length) this._deriveCandidateIntents();
+        },
+        _ingestTickets(rows){
+          this.tickets=rows.map(r=>({id:r.id||'',intent:(r.intent||'').trim(),subject:r.subject||'',description:r.description||r.latest_public_comment_body||''}));
+          this._deriveCandidateIntents();
+        },
+        _deriveCandidateIntents(){
+          const counts={}; for(const t of this.tickets){ if(!t.intent) continue; counts[t.intent]=(counts[t.intent]||0)+1; }
+          this.candidateIntents=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([k])=>k).slice(0,5);
+        },
+        analyzeIntents(){
+          if(!this.stories.length||!this.candidateIntents.length) return;
+          this.loadingIntents=true;
+          const storyCounts={}; this.candidateIntents.forEach(c=>storyCounts[c]=0);
+          for(const s of this.stories){ const it=(s.intent||'').trim(); if(storyCounts.hasOwnProperty(it)) storyCounts[it]++; }
+          const top3=Object.entries(storyCounts).sort((a,b)=> b[1]!==a[1]? b[1]-a[1] : a[0].localeCompare(b[0]) ).slice(0,3).map(([k])=>k);
+          this.selectedIntents=top3.length?top3:[this.candidateIntents[0]];
+          this.analysis=null;
+          this.loadingIntents=false;
+        },
+        removeIntent(tag){ if(this.selectedIntents.length<=1) return; this.selectedIntents=this.selectedIntents.filter(t=>t!==tag); this.analysis=null; },
+        async analyzeAlignment(){
+          if(!this.selectedIntents.length) return;
+          this.loadingAlignment=true;
+          const covered=new Set(this.stories.map(s=>(s.intent||'').trim()).filter(Boolean));
+          const relevant=this.tickets.filter(t=> this.selectedIntents.includes(t.intent));
+          const boosts={
+            'blocked account reason':['lockout','locked','blocked','403'],
+            'merge accounts':['merge','merged','consolidate','duplicate'],
+            'close or delete account':['delete','close','remove','gdpr'],
+            'account verification status':['verify','verification','unverified','confirmed'],
+            'sending account activation link':['activation','activate','link','expired']
+          };
+          let sum=0; for(const t of relevant){ const base=covered.has((t.intent||'').trim())?0.7:0.0; let score=base; if(base>0){ const txt=(t.subject+' '+t.description).toLowerCase(); const kws=boosts[(t.intent||'').trim().toLowerCase()]||[]; if(kws.some(k=>txt.includes(k))) score=1.0; } sum+=score; }
+          let avg=relevant.length? sum/relevant.length : 0;
+          let summary= relevant.length? `Across ${relevant.length} tickets, the selected intents are ${covered.size?'partially':'not yet'} represented. ${this.selectedIntents.filter(i=>!covered.has(i)).length?('Gaps: '+this.selectedIntents.filter(i=>!covered.has(i)).join(', ')+'.'):'All selected intents have at least one mapped story.'}` : `No tickets matched the selected intents in the loaded dataset.`;
+          let suggestions=[]; 
+          for(const m of this.selectedIntents.filter(i=>!covered.has(i))){ suggestions.push(`Add 1–2 stories explicitly addressing "${m}" with clear acceptance criteria and UI states.`); }
+          for(const w of this.selectedIntents.filter(i=>covered.has(i))){ suggestions.push(`Strengthen stories for "${w}" by covering edge cases from tickets (retry flows, expired links, confirmation messages).`); }
+          try{
+            const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+              epic:{name:this.epic.name,description:this.epic.description},
+              stories:this.stories.map(s=>({key:s.key,summary:s.summary,intent:s.intent})),
+              tickets:relevant,
+              intents:this.selectedIntents
+            })});
+            if(res.ok){
+              const data=await res.json();
+              if(typeof data.score==='number') avg=data.score;
+              if(data.summary) summary=data.summary;
+              if(Array.isArray(data.suggestions)) suggestions=data.suggestions;
+              this.serverStatus='online';
+            } else { this.serverStatus='offline'; }
+          }catch(e){ this.serverStatus='offline'; }
+          this.analysis={score:avg, summary, ticketCount:relevant.length, suggestions};
+          this.loadingAlignment=false;
+        },
+        async suggestStories(){
+          if(!this.analysis || !this.selectedIntents.length) return;
+          this.loadingSuggest=true;
+          try{
+            const res=await fetch('/api/suggest_stories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+              epic:{name:this.epic.name,description:this.epic.description},
+              intents:this.selectedIntents,
+              existingStories:this.stories.map(s=>({key:s.key,summary:s.summary,intent:s.intent})),
+              tickets:this.tickets.filter(t=>this.selectedIntents.includes(t.intent)).slice(0,50)
+            })});
+            if(res.ok){
+              const data=await res.json();
+              if(Array.isArray(data.stories) && data.stories.length){
+                const nextId = (()=>{
+                  const nums=this.stories.map(s=>{const m=/IL-(\\d+)/.exec(s.key||''); return m?parseInt(m[1],10):0;});
+                  return Math.max(0,...nums)+1;
+                })();
+                data.stories.forEach((s,i)=>{
+                  const key=`IL-${(nextId+i).toString().padStart(4,'0')}`;
+                  this.stories.push({ key, summary:s.summary || 'New story', status:'To Do', assignee:'', storyPoints: s.storyPoints ?? 3, intent: s.intent || this.selectedIntents[0] });
+                });
+                this._toast(`${data.stories.length} stories added`);
+                await this.analyzeAlignment();
+              }
+            } else { console.warn('suggest_stories failed'); }
+          } finally { this.loadingSuggest=false; }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

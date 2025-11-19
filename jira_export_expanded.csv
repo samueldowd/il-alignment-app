@@ -1,0 +1,122 @@
+Issue Type,Key,Summary,Description,Status,Assignee,Owner,Story Points,Priority,Labels,Components,Reporter,Created,Updated,Start Date,Due Date,Epic Link,Parent,Fix Version/s,Intent
+Epic,IL-1000,Improve Teacher Login Experience,"Background
+Teachers report frequent friction during sign‑in: low‑contrast labels, unclear errors, and inconsistent behavior on mobile devices. Help desk tickets cite forgotten passwords, lockouts after failed attempts, and confusion about which account to use. This epic addresses those problems end‑to‑end to make login fast, forgiving, and inclusive.
+
+What needs to be done
+We will redesign the login flow with clear labels and input states, add a password visibility toggle, provide better validation and guidance, improve error messages, add caps‑lock detection, clarify session options, and harden the “forgot password” flow with intuitive copy. Rate limiting and lockout rules will be tuned and communicated clearly. We will also add resilient loading states and prevent accidental double‑submissions.
+
+Why it needs to be done
+Friction at login blocks class time and generates support volume. A simpler login cuts failure loops and reduces average time-to-first-action. The work unlocks downstream flows (roster sync, assessments) by getting teachers reliably into the product.
+
+Acceptance criteria
+• Teachers can complete sign‑in without confusion from common error cases (bad password, invalid email, caps lock on, network error).
+• Helpful, plain‑language error messages with steps to resolve are shown inline and in banners where appropriate.
+• Inputs validate early (email format) and guide users before submission.
+• Buttons indicate loading state and block duplicate submissions.
+• Password toggle is present and accessible via keyboard/tap.
+• Lockouts are communicated with time remaining and next steps.
+• “Forgot password” is discoverable and results in a clear success message and guidance if no account is found.
+
+Success KPI
+A critical KPI is a measurable reduction in customer support tickets related to teacher sign‑in after release (target −40% within 60 days). Secondary signals include improved first‑attempt success rate and reduced time to sign‑in.",In Progress,Avery Chen,Avery Chen,55,High,"login,teacher,ux","Auth,Frontend,Design",Product Team,2025-10-01,2025-11-15,2025-10-05,2026-01-15,,,2025.4,
+Story,IL-0001,Clarify incorrect password error message,"As a teacher, I am confused when my password is wrong and need a clear message that explains what failed and how to fix it.
+Acceptance Criteria:
+- When credentials are incorrect, show a banner: “That password doesn’t match this account.”
+- Provide inline help with a “Reset password” link and “Check caps lock” hint.
+- Focus moves to the password field; screen readers announce the error.
+- No security leakage (do not confirm whether the email exists).",To Do,Morgan Lee,Morgan Lee,3,High,"login,teacher,ux","Frontend,UX Writing",Product Team,2025-10-02,2025-11-16,2025-10-06,2025-11-05,IL-1000,,2025.4,
+Story,IL-0014,Improve reliability and clarity of activation link delivery,"As a teacher, I want activation emails to arrive quickly and include clear steps so I can activate my account. Acceptance Criteria:
+- Activation email sent immediately upon signup.
+- Include expiry info and support contact.
+- Retry option if email not received within 5 minutes.",To Do,Morgan Lee,Morgan Lee,5,High,"login,teacher,ux","Design,UX Writing",Product Team,2025-10-19,2025-10-25,2025-10-19,2025-11-20,IL-1000,,2025.4,Sending account activation link
+Story,IL-0009,Remember me copy and session clarity,"As a teacher, I want to understand what “Remember me” does so I can decide confidently.
+Acceptance Criteria:
+- Tooltip or helper text explains session duration and device scope.
+- Default is unchecked.
+- No change to security posture; follows org policy.",To Do,Avery Chen,Avery Chen,2,Medium,"login,teacher,ux","Frontend,UX Writing",Product Team,2025-10-10,2025-11-17,2025-10-14,2025-11-13,IL-1000,,2025.4,
+Story,IL-0002,Inline email format validation,"As a teacher, I want to know if my email is invalid before I submit so I can correct it quickly.
+Acceptance Criteria:
+- Email field validates on blur and submit.
+- Invalid format shows inline error and prevents submit.
+- Example format hint appears under field (e.g., name@school.edu).",To Do,Sam Patel,Sam Patel,3,High,"login,teacher,ux",Frontend,Product Team,2025-10-03,2025-11-17,2025-10-07,2025-11-06,IL-1000,,2025.4,
+Story,IL-0016,Improve reliability and clarity of activation link delivery,"As a teacher, I want activation emails to arrive quickly and include clear steps so I can activate my account. Acceptance Criteria:
+- Activation email sent immediately upon signup.
+- Include expiry info and support contact.
+- Retry option if email not received within 5 minutes.",Review,Avery Chen,Avery Chen,3,Medium,"login,teacher,ux","UX Writing,Auth",Product Team,2025-10-21,2025-10-30,2025-10-22,2025-11-22,IL-1000,,2025.4,Sending account activation link
+Story,IL-0006,Improve Forgot Password discoverability and flow,"As a teacher, I want a clear path to reset my password and confirmation that it worked.
+Acceptance Criteria:
+- Prominent “Forgot password?” link near password field.
+- After request: show success banner regardless of account existence.
+- If email not found, provide next-step guidance without account enumeration.",To Do,Morgan Lee,Morgan Lee,3,High,"login,teacher,ux","Frontend,UX Writing",Product Team,2025-10-07,2025-11-21,2025-10-11,2025-11-10,IL-1000,,2025.4,
+Story,IL-0021,Fix account verification and confirmation messages,"As a teacher, I want to understand my account verification state so I know whether I can sign in. Acceptance Criteria:
+- Show clear verified/unverified banner.
+- Allow resending verification link.
+- Expired links display guidance to request a new one.",Review,Jordan Rivera,Jordan Rivera,5,High,"login,teacher,ux","Auth,Design",Product Team,2025-10-26,2025-11-01,2025-10-27,2025-11-23,IL-1000,,2025.4,Account verification status
+Story,IL-0012,Mobile keyboard & input ergonomics,"As a teacher on mobile, I want the email keyboard and proper auto-capitalization so typing is easier.
+Acceptance Criteria:
+- Email field uses email keyboard; disables auto-capitalization.
+- Password field disables autocorrect and suggestions.
+- Tap targets meet comfortable size; viewport avoids input jump.",To Do,Sam Patel,Sam Patel,3,High,"login,teacher,ux",Frontend,Product Team,2025-10-13,2025-11-20,2025-10-17,2025-11-16,IL-1000,,2025.4,
+Story,IL-0004,Prevent double-submit with loading state,"As a teacher, I want the Sign In button to show it’s working and not submit twice so I don’t get duplicate errors.
+Acceptance Criteria:
+- Submit shows spinner and disables the form until a response.
+- Hitting Enter again while loading does nothing.
+- Timeout after 15s shows a retriable network message.",To Do,Sam Patel,Sam Patel,3,High,"login,teacher,ux",Frontend,Product Team,2025-10-05,2025-11-19,2025-10-09,2025-11-08,IL-1000,,2025.4,
+Story,IL-0005,Caps Lock detection and hint,"As a teacher, I want to be warned if Caps Lock is on so I avoid password mistakes.
+Acceptance Criteria:
+- Caps Lock indicator appears when typing in password if active.
+- Message is subtle but visible; announced for assistive tech.
+- No telemetry of actual password content.",To Do,Taylor Brooks,Taylor Brooks,2,Medium,"login,teacher,ux",Frontend,Product Team,2025-10-06,2025-11-20,2025-10-10,2025-11-09,IL-1000,,2025.4,
+Story,IL-0018,Enable account merge for duplicate teacher profiles,"As a teacher, I want to merge duplicate accounts so my data is consolidated under one login. Acceptance Criteria:
+- Merge flow verifies ownership via email.
+- Display data migration summary before confirmation.
+- Keep both old and new credentials valid until merge completes.",To Do,Morgan Lee,Morgan Lee,3,Medium,"login,teacher,ux","Design,Backend",Product Team,2025-10-23,2025-10-25,2025-10-25,2025-12-14,IL-1000,,2025.4,Merge accounts
+Story,IL-0013,Enable account merge for duplicate teacher profiles,"As a teacher, I want to merge duplicate accounts so my data is consolidated under one login. Acceptance Criteria:
+- Merge flow verifies ownership via email.
+- Display data migration summary before confirmation.
+- Keep both old and new credentials valid until merge completes.",Review,Sam Patel,Sam Patel,2,Medium,"login,teacher,ux","Auth,Docs",Product Team,2025-10-18,2025-10-21,2025-10-20,2025-11-16,IL-1000,,2025.4,Merge accounts
+Story,IL-0019,Provide transparent delete account workflow,"As a teacher, I want to close my account easily and confirm data deletion so I can manage my privacy. Acceptance Criteria:
+- Add Delete button in settings with confirmation dialog.
+- Send email confirmation after deletion.
+- Log and audit deletions for compliance.",In Progress,Avery Chen,Avery Chen,3,Medium,"login,teacher,ux","Docs,Backend",Product Team,2025-10-24,2025-10-28,2025-10-26,2025-11-19,IL-1000,,2025.4,Close or delete account
+Story,IL-0017,Provide transparent delete account workflow,"As a teacher, I want to close my account easily and confirm data deletion so I can manage my privacy. Acceptance Criteria:
+- Add Delete button in settings with confirmation dialog.
+- Send email confirmation after deletion.
+- Log and audit deletions for compliance.",In Progress,Avery Chen,Avery Chen,2,Medium,"login,teacher,ux","Design,UX Writing",Product Team,2025-10-22,2025-10-27,2025-10-24,2025-11-29,IL-1000,,2025.4,Close or delete account
+Story,IL-0003,Add password visibility toggle,"As a teacher, I want to reveal my password briefly so I can avoid typos on small keyboards.
+Acceptance Criteria:
+- Eye icon toggles masked/unmasked state.
+- Toggle is keyboard/touch accessible and announces state change.
+- Default remains masked; state resets after submit.",To Do,Avery Chen,Avery Chen,2,Medium,"login,teacher,ux",Frontend,Product Team,2025-10-04,2025-11-18,2025-10-08,2025-11-07,IL-1000,,2025.4,
+Story,IL-0010,Account not found guidance (no enumeration),"As a teacher, I need guidance if my email isn’t recognized so I know how to proceed without exposing account existence.
+Acceptance Criteria:
+- Show generic success message after reset request.
+- Provide guidance to contact school admin or try another email.
+- Logging records “email not found” without surfacing to user.",To Do,Morgan Lee,Morgan Lee,3,High,"login,teacher,ux","Frontend,Backend",Product Team,2025-10-11,2025-11-18,2025-10-15,2025-11-14,IL-1000,,2025.4,
+Story,IL-0022,Provide transparent delete account workflow,"As a teacher, I want to close my account easily and confirm data deletion so I can manage my privacy. Acceptance Criteria:
+- Add Delete button in settings with confirmation dialog.
+- Send email confirmation after deletion.
+- Log and audit deletions for compliance.",Review,Sam Patel,Sam Patel,5,High,"login,teacher,ux","Design,UX Writing",Product Team,2025-10-27,2025-10-28,2025-10-29,2025-11-30,IL-1000,,2025.4,Close or delete account
+Story,IL-0008,Network/offline error handling,"As a teacher, I want clear guidance if I’m offline or the network fails so I can retry effectively.
+Acceptance Criteria:
+- Distinguish offline vs server error with specific copy.
+- Provide Retry button; auto-retry on reconnect.
+- Preserve typed inputs across retries.",To Do,Sam Patel,Sam Patel,3,High,"login,teacher,ux",Frontend,Product Team,2025-10-09,2025-11-16,2025-10-13,2025-11-12,IL-1000,,2025.4,
+Story,IL-0011,Keep context after password reset,"As a teacher, after resetting my password I want to return to the login screen with a clear success message.
+Acceptance Criteria:
+- Deep link back to login with “Password reset email sent” confirmation.
+- Inputs prefill email field when returning from reset.
+- No auto-fill of password fields.",To Do,Taylor Brooks,Taylor Brooks,3,High,"login,teacher,ux",Frontend,Product Team,2025-10-12,2025-11-19,2025-10-16,2025-11-15,IL-1000,,2025.4,
+Story,IL-0015,Improve reliability and clarity of activation link delivery,"As a teacher, I want activation emails to arrive quickly and include clear steps so I can activate my account. Acceptance Criteria:
+- Activation email sent immediately upon signup.
+- Include expiry info and support contact.
+- Retry option if email not received within 5 minutes.",In Progress,Avery Chen,Avery Chen,5,High,"login,teacher,ux","Auth,Design",Product Team,2025-10-20,2025-10-23,2025-10-20,2025-11-30,IL-1000,,2025.4,Sending account activation link
+Story,IL-0020,Fix account verification and confirmation messages,"As a teacher, I want to understand my account verification state so I know whether I can sign in. Acceptance Criteria:
+- Show clear verified/unverified banner.
+- Allow resending verification link.
+- Expired links display guidance to request a new one.",Review,Avery Chen,Avery Chen,2,Medium,"login,teacher,ux","Frontend,Docs",Product Team,2025-10-25,2025-10-30,2025-10-26,2025-12-11,IL-1000,,2025.4,Account verification status
+Story,IL-0007,Friendly lockout & rate-limit messaging,"As a teacher, I want to know if I’m temporarily locked out and what to do next.
+Acceptance Criteria:
+- After N failed attempts, show banner with remaining wait time.
+- Provide help-center link and reset option.
+- Copy avoids blame; never reveals which field was wrong.",To Do,Taylor Brooks,Taylor Brooks,3,High,"login,teacher,ux","Frontend,Backend",Product Team,2025-10-08,2025-11-15,2025-10-12,2025-11-11,IL-1000,,2025.4,
